@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>jquery stupid</title>
+    <script src="node_modules/jquery/dist/jquery.js"></script>
+    <style>
+        #container {
+            margin: 20px;
+            border: 1px solid black;
+            background-color: aliceblue;
+            padding: 20px;
+        }
+
+        .remove-todo-button {
+            color: red;
+            cursor: pointer;
+        }
+
+        #todos-array-content {
+            padding: 5px;
+            background-color: black;
+            color: white;
+        }
+
+        .todo-item-title {
+            cursor: pointer;
+        }
+
+        .todo-item-title.completed {
+            text-decoration: line-through;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <h1>List of posts</h1>
+        <div id="add-todo-container">
+            <input type="text" placeholder="todo title..." id="todo-input">
+            <button id="add-todo-button">Add todo</button>
+        </div>
+        <div id="todo-list-container"></div>
+        <pre id="todos-array-content"></pre>
+    </div>
+
+    <script>
+
+        var todoRepository = (function () {
+            var todos = [
+                {
+                    id: 1,
+                    title: 'Todo title 1',
+                    completed: false
+                },
+                {
+                    id: 2,
+                    title: 'Todo title 2',
+                    completed: false
+                },
+                {
+                    id: 3,
+                    title: 'Todo title 3',
+                    completed: true
+                }
+            ];
+            function getAll() {
+                return JSON.stringify(todos);
+            }
+
+            function getById(id) {
+                var todoIndex = findTodoIndexById(id);
+                return todoIndex != -1 ?
+                    JSON.stringify(todos[todoIndex]) :
+                    null;
+            }
+
+            function findTodoIndexById(id) {
+                for (var i = 0; i < todos.length; i++) {
+                    var todo = todos[i];
+                    if (todo.id == id) {
+                        return i;
+                    }
+                }
+                return -1;
+            }
+
+            function  deleteById(id) {
+                var todoIndex = findTodoIndexById(id);
+                todos.splice(todoIndex, 1);
+            }
+
+            function toggleCompleted(todoId) {
+                var todoIndex = findTodoIndexById(todoId);
+                todos[todoIndex].completed = !todos[todoIndex].completed;
+            }
+
+            function addNewTodo(todo) {
+
+            }
+
+            var listeners = [];
+            function addChangeListener(cb) {
+                listeners.push(cb);
+            }
+
+            return {
+                getAll: getAll,
+                getById: getById,
+                delete: deleteById,
+                add: addNewTodo,
+                toggleCompleted: toggleCompleted,
+                addChangeListener: addChangeListener
+            }
+        })();
+
+
+
+        var nextTodoId = 4;
+
+        function printTodosArrayContent(todos) {
+            var arrayContentContainer = $('#todos-array-content');
+            arrayContentContainer.empty();
+            arrayContentContainer.text(JSON.stringify(todos, null, '\t'));
+        }
+
+
+
+        function getTodoItemIdAttributeValue(dataItem) {
+            var li = $(dataItem).closest('li');
+            var postId = li.data('id');
+            return postId;
+        }
+
+        function createTodoDom(todo) {
+            var li = $('<li></li>').data('id', todo.id);
+            li.attr({'data-id': todo.id});
+            var todoTitleSpan = $('<span></span>');
+            todoTitleSpan.text(todo.title);
+            todoTitleSpan.attr({'class': 'todo-item-title'});
+            if (todo.completed) {
+                todoTitleSpan.addClass('completed');
+            }
+            todoTitleSpan.click(function () {
+                var todoId = getTodoItemIdAttributeValue(this);
+                $(this).toggleClass('completed');
+                todoRepository.toggleCompleted(todoId);
+                printTodosArrayContent();
+            });
+
+            var removeTodoBtn = $('<span> &#x274C;</span>').attr({'class': 'remove-todo-button'});
+            removeTodoBtn.click(function () {
+                var todoId = getTodoItemIdAttributeValue(this);
+                li.remove();
+                todoRepository.delete(todoId);
+                printTodosArrayContent();
+            });
+
+            li.append(todoTitleSpan);
+            li.append(removeTodoBtn);
+            return li;
+        }
+
+        $(document).ready(function () {
+
+            var todoListContainer = $('#todo-list-container');
+            var ul = $('<ul></ul>');
+            var todos = JSON.parse(todoRepository.getAll());
+            todos.forEach(function (todo) {
+                var li = createTodoDom(todo);
+                ul.append(li);
+            });
+            todoListContainer.append(ul);
+            printTodosArrayContent(todos);
+
+            function focusTodoInput() {
+                $('#todo-input').focus();
+            }
+            focusTodoInput();
+
+            $('#add-todo-button').click(function () {
+                var input = $('#todo-input');
+                var value = input.val().trim();
+                if (value) {
+                    var id = nextTodoId++;
+                    var newTodo = {
+                        id: id,
+                        title: value,
+                        completed: false
+                    };
+                    var li = createTodoDom(newTodo);
+                    ul.append(li);
+                    todos.push(newTodo);
+                    printTodosArrayContent();
+                }
+                focusTodoInput();
+                input.val('');
+            });
+
+        });
+
+    </script>
+
+</body>
+</html>
