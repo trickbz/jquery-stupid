@@ -2,29 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>jquery stupid</title>
-    <script src="node_modules/jquery/dist/jquery.js"></script>
+    <title>stupid jqeury</title>
     <style>
+
         #container {
+            background-color: antiquewhite;
             margin: 20px;
+            padding: 15px;
             border: 1px solid black;
-            background-color: aliceblue;
-            padding: 20px;
         }
 
-        .remove-todo-button {
+        .delete-todo-button {
             color: red;
             cursor: pointer;
         }
 
-        #todos-array-content {
-            padding: 5px;
+        #todo-array-content {
+            border: 1px solid black;
             background-color: black;
             color: white;
         }
 
-        .todo-item-title {
-            cursor: pointer;
+        #add-todo-input.focused {
+            border-color: blue;
         }
 
         .todo-item-title.completed {
@@ -32,175 +32,189 @@
         }
 
     </style>
+    <script src="node_modules/jquery/dist/jquery.js"></script>
 </head>
 <body>
+<script>
 
-    <div id="container">
-        <h1>List of posts</h1>
-        <div id="add-todo-container">
-            <input type="text" placeholder="todo title..." id="todo-input">
-            <button id="add-todo-button">Add todo</button>
-        </div>
-        <div id="todo-list-container"></div>
-        <pre id="todos-array-content"></pre>
-    </div>
 
-    <script>
+    var repository = (function () {
+        var todos = [
+            {
+                id: 1,
+                title: 'Todo 1',
+                completed: false
+            },
+            {
+                id: 2,
+                title: 'Todo 2',
+                completed: false
+            },
+            {
+                id: 3,
+                title: 'Todo 3',
+                completed: true
+            }
+        ];
 
-        var todoRepository = (function () {
-            var todos = [
-                {
-                    id: 1,
-                    title: 'Todo title 1',
-                    completed: false
-                },
-                {
-                    id: 2,
-                    title: 'Todo title 2',
-                    completed: false
-                },
-                {
-                    id: 3,
-                    title: 'Todo title 3',
-                    completed: true
+        var nextId = 4;
+
+        function getTodoIndexById(id) {
+            for (var i = 0; i < todos.length; i++) {
+                var todo = todos[i];
+                if (todo.id == id) {
+                    return i;
                 }
-            ];
-            function getAll() {
-                return JSON.stringify(todos);
             }
-
-            function getById(id) {
-                var todoIndex = findTodoIndexById(id);
-                return todoIndex != -1 ?
-                    JSON.stringify(todos[todoIndex]) :
-                    null;
-            }
-
-            function findTodoIndexById(id) {
-                for (var i = 0; i < todos.length; i++) {
-                    var todo = todos[i];
-                    if (todo.id == id) {
-                        return i;
-                    }
-                }
-                return -1;
-            }
-
-            function  deleteById(id) {
-                var todoIndex = findTodoIndexById(id);
-                todos.splice(todoIndex, 1);
-            }
-
-            function toggleCompleted(todoId) {
-                var todoIndex = findTodoIndexById(todoId);
-                todos[todoIndex].completed = !todos[todoIndex].completed;
-            }
-
-            function addNewTodo(todo) {
-
-            }
-
-            var listeners = [];
-            function addChangeListener(cb) {
-                listeners.push(cb);
-            }
-
-            return {
-                getAll: getAll,
-                getById: getById,
-                delete: deleteById,
-                add: addNewTodo,
-                toggleCompleted: toggleCompleted,
-                addChangeListener: addChangeListener
-            }
-        })();
-
-
-
-        var nextTodoId = 4;
-
-        function printTodosArrayContent(todos) {
-            var arrayContentContainer = $('#todos-array-content');
-            arrayContentContainer.empty();
-            arrayContentContainer.text(JSON.stringify(todos, null, '\t'));
+            return -1;
         }
 
-
-
-        function getTodoItemIdAttributeValue(dataItem) {
-            var li = $(dataItem).closest('li');
-            var postId = li.data('id');
-            return postId;
+        function getAllTodos() {
+            return JSON.stringify(todos);
         }
 
-        function createTodoDom(todo) {
-            var li = $('<li></li>').data('id', todo.id);
+        function deleteTodo(todoId) {
+            var index = getTodoIndexById(todoId);
+            todos.splice(index, 1);
+            notifyObservers();
+        }
+
+        var listeners = [];
+
+        function notifyObservers() {
+            listeners.forEach(function (listener) {
+                listener(getAllTodos());
+            });
+        }
+
+        function addChangeListener(cb) {
+            listeners.push(cb);
+        }
+
+        function addTodo(todoObj) {
+            todoObj.id = nextId++;
+            todos.push(todoObj);
+            notifyObservers();
+        }
+
+        function toggleCompleted(todoId) {
+            var index = getTodoIndexById(todoId);
+            var todo = todos[index];
+            todo.completed = !todo.completed;
+            notifyObservers();
+        }
+
+        return {
+            getAllTodos: getAllTodos,
+            deleteTodo: deleteTodo,
+            addChangeListener: addChangeListener,
+            addTodo: addTodo,
+            toggleCompleted: toggleCompleted
+        }
+    }());
+
+    $(document).ready(function () {
+
+        repository.addChangeListener(function (todosJson) {
+            var todosObj = JSON.parse(todosJson);
+            printArray(todosObj);
+        });
+
+        var input = $('#add-todo-input');
+        var ul = $('<ul></ul>');
+        var todos = JSON.parse(repository.getAllTodos());
+
+        function focusInput() {
+            input.focus();
+        }
+
+        function printArray(todosObj) {
+            $('#todo-array-content').empty();
+            $('#todo-array-content').text(JSON.stringify(todosObj, null, '\t'));
+        }
+
+        function getTodoItemIdDom(todoItemDomChild) {
+            var li = $(todoItemDomChild).closest('li');
+            var id = li.data('id');
+            return id;
+        }
+
+        function createTodoItem(todo) {
+            var li = $('<li>');
             li.attr({'data-id': todo.id});
-            var todoTitleSpan = $('<span></span>');
-            todoTitleSpan.text(todo.title);
-            todoTitleSpan.attr({'class': 'todo-item-title'});
-            if (todo.completed) {
-                todoTitleSpan.addClass('completed');
-            }
-            todoTitleSpan.click(function () {
-                var todoId = getTodoItemIdAttributeValue(this);
+            var titleSpan = $('<span>');
+            titleSpan.text(todo.title);
+            titleSpan.addClass('todo-item-title');
+            titleSpan.click(function () {
                 $(this).toggleClass('completed');
-                todoRepository.toggleCompleted(todoId);
-                printTodosArrayContent();
+                var id = getTodoItemIdDom(this);
+                repository.toggleCompleted(id);
             });
-
-            var removeTodoBtn = $('<span> &#x274C;</span>').attr({'class': 'remove-todo-button'});
-            removeTodoBtn.click(function () {
-                var todoId = getTodoItemIdAttributeValue(this);
+            if (todo.completed) {
+                titleSpan.addClass('completed');
+            }
+            var deleteItemSpan = $('<span> &#x2716;</span>');
+            deleteItemSpan.attr({'class': 'delete-todo-button'});
+            deleteItemSpan.click(function () {
+                var id = getTodoItemIdDom(this);
                 li.remove();
-                todoRepository.delete(todoId);
-                printTodosArrayContent();
+                repository.deleteTodo(id);
             });
-
-            li.append(todoTitleSpan);
-            li.append(removeTodoBtn);
+            li.append(titleSpan);
+            li.append(deleteItemSpan);
             return li;
         }
 
-        $(document).ready(function () {
-
-            var todoListContainer = $('#todo-list-container');
-            var ul = $('<ul></ul>');
-            var todos = JSON.parse(todoRepository.getAll());
-            todos.forEach(function (todo) {
-                var li = createTodoDom(todo);
-                ul.append(li);
-            });
-            todoListContainer.append(ul);
-            printTodosArrayContent(todos);
-
-            function focusTodoInput() {
-                $('#todo-input').focus();
-            }
-            focusTodoInput();
-
-            $('#add-todo-button').click(function () {
-                var input = $('#todo-input');
-                var value = input.val().trim();
-                if (value) {
-                    var id = nextTodoId++;
-                    var newTodo = {
-                        id: id,
-                        title: value,
-                        completed: false
-                    };
-                    var li = createTodoDom(newTodo);
-                    ul.append(li);
-                    todos.push(newTodo);
-                    printTodosArrayContent();
-                }
-                focusTodoInput();
-                input.val('');
-            });
-
+        input.focus(function () {
+            $(this).addClass('focused');
         });
 
-    </script>
+        input.blur(function () {
+            $(this).removeClass('focused');
+        });
+
+        focusInput();
+
+        var listContainer = $('#todo-list-container');
+
+        todos.forEach(function (todo) {
+            var li = createTodoItem(todo);
+            ul.append(li);
+        });
+        listContainer.append(ul);
+        printArray(todos);
+
+        $('#add-todo-button').click(function () {
+
+            var value = input.val().trim();
+            if (value) {
+                var newTodo = {
+                    title: value,
+                    completed: false
+                };
+                repository.addTodo(newTodo);
+                var li = createTodoItem(newTodo);
+                ul.append(li);
+
+
+                todos.push(newTodo);
+
+            }
+            focusInput();
+            input.val('');
+        });
+    });
+</script>
+
+<div id="container">
+    <h1>Todo List</h1>
+    <div id="add-todo-container">
+        <input type="text" placeholder="Todo title..." id="add-todo-input">
+        <button id="add-todo-button">Add Todo</button>
+    </div>
+    <div id="todo-list-container"></div>
+    <pre id="todo-array-content"></pre>
+</div>
 
 </body>
 </html>
